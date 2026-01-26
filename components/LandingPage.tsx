@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { motion, AnimatePresence} from 'framer-motion';
+import { motion, Variants , AnimatePresence} from 'framer-motion';
 import { TrendingUp, Bell, Activity, Shield, AlertCircle, Menu, X, Plus, LayoutDashboard } from 'lucide-react';
 interface LandingPageProps {
   onGetStarted: () => void;
@@ -96,13 +96,13 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
 
           {/* Right Side - CTA + Mobile Menu Toggle */}
           <div className="flex items-center gap-2 md:gap-3 shrink-0">
-            {/* Access Portal Button -  */}
+            {/*  Get Started button -  */}
             <button 
               onClick={onGetStarted}
               className="px-4 py-2 bg-emerald-500 text-zinc-950 rounded-full font-black text-[10px] uppercase hover:bg-emerald-400"
               // style={{ display: 'inline-block !important', visibility: 'visible !important', opacity: '1 !important',minWidth: '120px' }}  
             >
-              Access Portal
+               Get Started
             </button>
 
             {/* Mobile Menu Button  */}
