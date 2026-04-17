@@ -11,6 +11,7 @@ import SettingsView from './components/SettingsView';
 import AuthPage from './components/AuthPage';
 import { User, Subscription } from './types';
 import { api } from './services/apiService';
+import { auth, onAuthStateChanged, firebaseSignOut } from './services/firebase';
 
 const ControlCenter: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLogout }) => {
   const [view, setView] = useState<'dashboard' | 'inventory' | 'security' | 'alerts' | 'settings'>('dashboard');
@@ -92,12 +93,56 @@ const ControlCenter: React.FC<{ user: User; onLogout: () => void }> = ({ user, o
 const App: React.FC = () => {
   const [user, setUser] = useState<User | null>(null);
   const [showAuth, setShowAuth] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
 
+  // Listen for Firebase auth state changes
   useEffect(() => {
-    const savedUser = localStorage.getItem('cusub_user');
-    if (savedUser) {
-      setUser(JSON.parse(savedUser));
-    }
+    const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
+      try {
+        if (firebaseUser) {
+          const appUser: User = {
+            id: firebaseUser.uid,
+            email: firebaseUser.email || '',
+            name: firebaseUser.displayName || firebaseUser.email?.split('@')[0] || 'Agent',
+            preferences: {
+              default_currency: 'USD',
+              alert_sensitivity: 'aggressive',
+            },
+          };
+
+          // Merge with any saved preferences from localStorage
+          const savedUser = localStorage.getItem('cusub_user');
+          if (savedUser) {
+            try {
+              const parsed = JSON.parse(savedUser);
+              if (parsed.id === firebaseUser.uid && parsed.preferences) {
+                appUser.preferences = parsed.preferences;
+              }
+              if (parsed.name && parsed.name !== 'Agent') {
+                appUser.name = parsed.name;
+              }
+            } catch {
+              // Ignore parse errors — use defaults
+            }
+          }
+
+          localStorage.setItem('cusub_user', JSON.stringify(appUser));
+          setUser(appUser);
+          setShowAuth(false);
+        } else {
+          setUser(null);
+          localStorage.removeItem('cusub_user');
+        }
+      } catch (error) {
+        // Never crash on auth state errors
+        console.error('Auth state error:', error);
+        setUser(null);
+      } finally {
+        setIsLoading(false);
+      }
+    });
+
+    return () => unsubscribe();
   }, []);
 
   const handleAuthSuccess = (userData: User) => {
@@ -106,10 +151,28 @@ const App: React.FC = () => {
   };
 
   const handleLogout = async () => {
+    try {
+      await firebaseSignOut();
+    } catch {
+      // If Firebase sign-out fails, still clear local state
+      console.error('Logout error — clearing local state');
+    }
     await api.logout();
     setUser(null);
     setShowAuth(false);
   };
+
+  // Show a loading spinner while Firebase checks session
+  if (isLoading) {
+    return (
+      <div className="antialiased text-zinc-100 bg-zinc-950 min-h-screen flex flex-col items-center justify-center">
+        <div className="w-16 h-16 bg-emerald-500 rounded-[1.4rem] flex items-center justify-center text-zinc-950 font-black text-3xl shadow-[0_0_60px_rgba(16,185,129,0.2)] mb-6 animate-pulse">
+          C
+        </div>
+        <div className="w-8 h-8 border-3 border-emerald-500/20 border-t-emerald-500 rounded-full animate-spin"></div>
+      </div>
+    );
+  }
 
   return (
       <AnimatePresence mode="wait">
